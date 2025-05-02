@@ -24,5 +24,4 @@ pnpm-debug.log*
 .idea/
 
 # deploy specific
-.github/dependabot.yml
 README.md
