@@ -58,8 +58,12 @@ jobs:
           cache-dependency-path: ${{ env.BUILD_PATH }}/${{ steps.detect-package-manager.outputs.lockfile }}
       - name: Clean install
         run: |
-          rm -rf node_modules package-lock.json
-          npm install
+            rm -rf node_modules package-lock.json yarn.lock
+            if [ "${{ steps.detect-package-manager.outputs.manager }}" == "yarn" ]; then
+              yarn install
+            else
+              npm install
+            fi
         working-directory: ${{ env.BUILD_PATH }}
       - name: Build with Astro
         run: |
