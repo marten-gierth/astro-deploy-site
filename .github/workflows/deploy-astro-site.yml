@@ -1,4 +1,4 @@
-name: Deploy Astro Site
+name: Deploy Astro site to Pages
 
 on:
   # Runs on pushes targeting the default branch
@@ -56,18 +56,17 @@ jobs:
           node-version: "20"
           cache: ${{ steps.detect-package-manager.outputs.manager }}
           cache-dependency-path: ${{ env.BUILD_PATH }}/${{ steps.detect-package-manager.outputs.lockfile }}
-      - name: Clean install
-        run: |
-            rm -rf node_modules package-lock.json yarn.lock
-            if [ "${{ steps.detect-package-manager.outputs.manager }}" == "yarn" ]; then
-              yarn install
-            else
-              npm install
-            fi
+      - name: Setup Pages
+        id: pages
+        uses: actions/configure-pages@v5
+      - name: Install dependencies
+        run: ${{ steps.detect-package-manager.outputs.manager }} ${{ steps.detect-package-manager.outputs.command }}
         working-directory: ${{ env.BUILD_PATH }}
       - name: Build with Astro
         run: |
-          ${{ steps.detect-package-manager.outputs.runner }} astro build
+          ${{ steps.detect-package-manager.outputs.runner }} astro build \
+            --site "${{ steps.pages.outputs.origin }}" \
+            --base "${{ steps.pages.outputs.base_path }}"
         working-directory: ${{ env.BUILD_PATH }}
       - name: Log build output
         run: |
@@ -75,18 +74,19 @@ jobs:
           ls -la ${{ env.BUILD_PATH }}
           echo "Checking dist directory..."
           ls -la ${{ env.BUILD_PATH }}/dist || echo "dist directory does not exist!"
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ${{ env.BUILD_PATH }}/dist
 
-      - name: Deploy
-        uses: s0/git-publish-subdir-action@master
-        env:
-          REPO: self
-          BRANCH: data_build
-          FOLDER: dist
-          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }} #GH_TOKEN_ICU_MEDIA_WORKFLOW
-          COMMIT_AUTHOR_NAME: "GitHub Actions"
-
-      - name: Trigger Webhook
-        run: |
-          curl -X POST -H "Content-Type: application/x-www-form-urlencoded" \
-          -d "branch=data_build" \
-          ${{ secrets.WEBHOOK_URL }}
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    needs: build
+    runs-on: ubuntu-latest
+    name: Deploy
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
